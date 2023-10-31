@@ -1,0 +1,71 @@
+---  
+- hosts: localhost  
+  connection: local  
+  gather_facts: yes   
+  vars:  
+    region: us-east-1 
+    #allowed_ip:  ec2.instances[0].network_interfaces.public_ip 
+  tasks:  
+ 
+
+    - name: create virginia-security group
+      amazon.aws.ec2_security_group:
+        region: "{{ region }}"  
+        name: virginia-security-group 
+        description: security group for apsydney webserver host
+        rules:
+          # allow ssh access from your ip address  
+          - proto: tcp  
+            from_port: 22  
+            to_port: 22  
+            #cidr_ip: "{{ allowed_ip }}"  
+            cidr_ip: 0.0.0.0/0
+          # allow http access from anywhere  
+          - proto: tcp  
+            from_port: 80    
+            to_port: 80    
+            cidr_ip: 0.0.0.0/0  
+        rules_egress:
+          - proto: all
+            cidr_ip: 0.0.0.0/0
+         
+
+    - name: launch instance
+      amazon.aws.ec2_instance:
+        region: "{{ region }}"  
+        key_name: nkatha-NVirginia-key 
+        instance_type: t1.micro  
+        image_id:  ami-0fc5d935ebf8bc3bc 
+        #image_id : ami-01eccbf80522b562b
+        #state: absent
+    
+
+        exact_count: 1
+        tags:
+          Name: amazon-linux-db-servers
+          env: dev
+
+        wait: yes    
+        security_group: virginia-security-group
+      register: ec2  
+
+
+      
+    -  debug:
+         msg: "{{ ec2 }}" 
+    #-  name: set ec2 facts
+     #  set_fact:
+       #  ec2inf: "{{ ec2.instances[0].instance_id }}"
+    #-  debug:
+    #     msg: "{{ ec2inf }}"  
+   # - name: associate new EIP for the instance    
+    #  ec2_eip:
+     #   region: "{{ region }}"
+      #  instance_id: "{{ ec2.instances[0].instance_id }}"
+      #with_items: ec2.instances
+      
+    - name: associate an elastic IP with an instance
+      amazon.aws.ec2_eip:
+        region : "{{ region }}"
+        device_id: "{{ ec2.instances[0].instance_id }}"
+                  
